@@ -1,0 +1,12 @@
+.formularios {
+    display: flex;
+    width: 40vw;
+    justify-content: center;
+}
+.formularios > input {
+    margin-right: 10px;
+}
+
+.formularios > button {
+    flex-grow: 1;
+}
