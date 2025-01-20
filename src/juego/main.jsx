@@ -47,109 +47,56 @@ function MenuMemoryGame({difficulty, setDifficulty}) {
 }
 
 function CardCharacter({bleachCharacterProps, handlePicked, cardPicked}) {
-    const level = useContext(difficultyContext);
-    const [randomCards, setRandomCards] = useState([]);
-    const isInitialMount = useRef(true);
-
-    // Efecto para debug
-    useEffect(() => {
-        console.log('Estado actual de randomCards:', randomCards);
-        console.log('Nivel actual:', level);
-    }, [randomCards, level]);
-
-    useEffect(() => {
-        if (!level) return;
-
-        // Evitar la primera ejecución si ya tenemos cartas
-        if (!isInitialMount.current && randomCards.length > 0) {
-            return;
-        }
-        isInitialMount.current = false;
-
-        try {
-            const cardCount = {
-                "easy": 3,
-                "medium": 4,
-                "hard": 5
-            }[level.toLowerCase()];
-
-            if (!cardCount) {
-                console.error('Nivel no válido:', level);
-                return;
-            }
-
-            // Crear una copia limpia del array de personajes
-            const charactersCopy = [...bleachCharacter]
-                .filter(char => char && char.name && char.avatar);
-
-            // Mezclar el array usando Fisher-Yates
-            for (let i = charactersCopy.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [charactersCopy[i], charactersCopy[j]] = 
-                [charactersCopy[j], charactersCopy[i]];
-            }
-
-            // Tomar solo las cartas necesarias
-            const selectedCards = charactersCopy.slice(0, cardCount);
-
-            // Verificar que tenemos suficientes cartas válidas
-            if (selectedCards.length !== cardCount) {
-                console.error('No hay suficientes cartas válidas');
-                return;
-            }
-
-            // Actualizar el estado solo si las cartas son diferentes
-            setRandomCards(prev => {
-                if (JSON.stringify(prev) === JSON.stringify(selectedCards)) {
-                    return prev;
-                }
-                return selectedCards;
-            });
-
-        } catch (error) {
-            console.error('Error al generar cartas:', error);
-        }
-    }, [level]); // Solo depende del nivel
-
-    const pickCharacter = useCallback((e, character) => {
-        e.preventDefault();
-        if (!character || !character.name || !character.avatar) return;
+    const characterList = useRef(bleachCharacter)
+    const level = useContext(difficultyContext)
+    const [init, setInit] = useState(false)
+    const [randomCards, setRandomCards] = useState(() => {
+        const characterRandom = [];
+        const availableCharacters = bleachCharacterProps.filter(Boolean)
+        // Determinar el número de cartas según el nivel
+        const cardCount = level.toLowerCase() === "easy" ? 3 : 
+                         level.toLowerCase() === "medium" ? 4 : 5;
         
-        handlePicked(prev => [...prev, {
-            name: character.name,
-            avatar: character.avatar
-        }]);
-    }, [handlePicked]);
+        for (let i = 0; i < cardCount && availableCharacters.length > 0; i++) {
+            const randomIndex = Math.floor(Math.random() * availableCharacters.length);
+            characterRandom.push(availableCharacters[randomIndex]);
+            availableCharacters.splice(randomIndex, 1);
+        }
+        
+        return characterRandom;
 
-    if (!level) {
-        return <div className="character-container">Selecciona una dificultad</div>;
+    })
+    console.log(JSON.stringify(randomCards))
+    
+
+    function pickCharacter(e, character) {
+        handlePicked([
+            ...cardPicked,
+            {
+                name: character.name,
+                avatar: character.avatar
+            }
+        ]);
+        setInit(true)
     }
 
-    if (randomCards.length === 0) {
-        return <div className="character-container">Cargando personajes...</div>;
-    }
 
+    
     return (
-        <div className="character-container">
-            {randomCards.map((character, index) => (
-                <div 
-                    onClick={(e) => pickCharacter(e, character)}
-                    key={`${character.name}-${index}-${level}`}
-                    className="character-card"
-                >
-                    <img 
-                        src={character.avatar} 
-                        alt={character.name}
-                        onError={(e) => {
-                            e.target.onerror = null;
-                            console.error(`Error cargando imagen para ${character.name}`);
-                        }}
-                    />
-                    <div className="character-name">{character.name}</div>
-                </div>
-            ))}
-        </div>
-    );
+                randomCards
+                .filter(character => character && character.avatar)
+                .map((character, index) => (
+                    <div onClick={(e) => pickCharacter(e, character)} key={`${character} + ${index}`} className="character-card">
+                        <img 
+                            src={character.avatar} 
+                            alt={character.name} 
+                        />
+                        <div className="character-name">
+                            {character.name}                    
+                        </div>
+                    </div>
+                ))
+    )
 }
 
 function CardBoard({children, difficulty}) {
@@ -165,34 +112,26 @@ function CardBoard({children, difficulty}) {
 }
 
 export default function MemoryGame() {    
-    const [difficulty, setDifficulty] = useState('');
-    const [cardPicked, setCardPicked] = useState([]);
+    const [difficulty, setDifficulty] = useState(0)
+    const [cardPicked, setCardPicked] = useState([])
 
-    const handlePicked = useCallback((updater) => {
-        setCardPicked(updater);
-    }, []);
+    function handlePicked(ele) {
+        setCardPicked(ele)
+    }
 
-    const handleLevel = useCallback((event) => {
-        const newLevel = event.target.innerText;
-        setDifficulty(newLevel);
-    }, []);
+    function handleLevel(ele) {
+        setDifficulty(ele.target.innerText)
+    }
 
     return (
        <div className="father">
-            {difficulty ? (
+            {
+                difficulty ? 
                 <CardBoard difficulty={difficulty}>
-                    <CardCharacter 
-                        handlePicked={handlePicked} 
-                        cardPicked={cardPicked} 
-                        bleachCharacterProps={bleachCharacter} 
-                    />
+                    <CardCharacter handlePicked={handlePicked} cardPicked={cardPicked} bleachCharacterProps={bleachCharacter} difficulty={difficulty} />
                 </CardBoard>
-            ) : (
-                <MenuMemoryGame 
-                    setDifficulty={handleLevel} 
-                    difficulty={difficulty} 
-                />
-            )}
+                : <MenuMemoryGame setDifficulty={handleLevel} difficulty={difficulty} />
+            }
        </div>
-    );
+    )
 }
